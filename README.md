@@ -9,6 +9,10 @@ Two versions of the environment are provided:
 
 ---
 
+<video width="480" controls>
+  <source src="videos/MovingObstacles-episode-0.mp4" type="video/mp4">
+</video>
+
 ## Features
 
 - **Dynamic Obstacles**: Obstacles move at every timestep, increasing complexity and making path planning more challenging.  

@@ -243,7 +243,7 @@ class PPO:
         episode = 0
         success_rate_list = []
         average_reward = []
-        reward_array = np.zeros(100, dtype=np.float32)
+        reward_array = np.zeros(10, dtype=np.float32)
         total_updates = int(self.config.train_steps/self.config.rollout_size)
 
         for i in range(0, total_updates):
@@ -281,7 +281,7 @@ class PPO:
                     state = self.env.reset()[0]
 
                 # Collect mean values over the updates
-                if episode%100 == 0:
+                if episode%10 == 0:
                     average_reward.append(reward_array.mean())
 
             success_rate = success/ep_in_rol
@@ -371,8 +371,12 @@ class PPO:
             episodes (int, optional): Number of episodes to record. Defaults to 3.
         """
         self.load()
-        record_env = gym.make("MovingObstaclesGrid-v1", num_obstacles=3,
-                             nrow=10, ncol=10, render_mode='rgb_array')
+        record_env = gym.make(f"MovingObstaclesGrid-v{self.config.environment_num_channels}", 
+                             num_obstacles=self.config.num_obstacles,
+                             dense_reward=self.config.dense_rew,
+                             nrow=self.config.shape[0],
+                             ncol=self.config.shape[1],
+                             render_mode='rgb_array')
         record_env = gym.wrappers.RecordVideo(
             record_env, video_folder="videos",
             episode_trigger=lambda x: True,

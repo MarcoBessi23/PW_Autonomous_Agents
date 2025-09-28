@@ -6,6 +6,8 @@ import numpy as np
 from gymnasium import spaces, Env
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import io
+from PIL import Image
 
 
 
@@ -34,7 +36,7 @@ class DynamicObstacleShapes(Env):
         observation_space (spaces.Box): 3-channel observation space (obstacles, agent, goal)
         obstacle_specs (list): Predefined obstacle shapes as relative cell coordinates
     """
-    metadata = {"render_modes": ["human"], "render_fps": 30}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
     def __init__(self, dense_reward, nrow=10, ncol=10, max_step=500,
                  num_obstacles=2, render_mode=None):
@@ -236,7 +238,11 @@ class DynamicObstacleShapes(Env):
         return self._get_obs(), reward, terminated, truncated, {}
 
     def render(self, mode="human"):
-        if self.render_mode != "human":
+
+        if self.render_mode == "rgb_array":
+            return self._render_rgb_array()
+
+        elif mode == "human" and self.render_mode != "human":  # Only check for human mode
             return
 
         time.sleep(1 / self.metadata["render_fps"])
@@ -346,6 +352,122 @@ class DynamicObstacleShapes(Env):
 
         self._fig.canvas.draw()
         self._fig.canvas.flush_events()
+
+    def _render_rgb_array(self, width=512, height=512):
+        """
+        Render the environment and return an RGB array for video recording.
+        """
+        try:
+            # Create a figure for rgb_array rendering (without displaying it)
+            fig, axes = plt.subplots(figsize=(width/100, height/100), dpi=100)
+
+            grid = np.zeros((self.nrow, self.ncol), dtype=int)
+            agent_x, agent_y = self.agent_pos
+
+            cmap = mcolors.ListedColormap(["#0d0d0d"])
+
+            # Set up the plot
+            img = axes.imshow(grid, cmap=cmap, origin="upper", vmin=0, vmax=0)
+
+            # Grid setup
+            axes.set_xticks(np.arange(-0.5, self.ncol, 1), minor=True)
+            axes.set_yticks(np.arange(-0.5, self.nrow, 1), minor=True)
+            axes.set_xticks(np.arange(0, self.ncol, 1), minor=False)
+            axes.set_yticks(np.arange(0, self.nrow, 1), minor=False)
+
+            # Grid styling
+            axes.grid(which="minor", color="#404040", linestyle='-', linewidth=0.6)
+            axes.tick_params(which="minor", size=0)
+            axes.tick_params(which="major", size=0)
+            axes.set_facecolor("#0d0d0d")
+
+            # Hide tick labels and axes for clean video
+            axes.set_xticklabels([])
+            axes.set_yticklabels([])
+            axes.set_aspect('equal')
+
+            # Remove axes and margins for clean video
+            axes.set_xlim(-0.5, self.ncol - 0.5)
+            axes.set_ylim(-0.5, self.nrow - 0.5)
+            fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+
+            # Draw obstacles
+            for obs_def in self.obstacles:
+                ox, oy = obs_def["pos"]
+                for dx, dy in obs_def["cells"]:
+                    x, y = ox + dx, oy + dy
+                    rect = plt.Rectangle((y - 0.5, x - 0.5), 1.0, 1.0,
+                                       facecolor="#ff004d", edgecolor="none")
+                    axes.add_patch(rect)
+
+            # Draw goal
+            gx, gy = self.goal_pos
+
+            # Outer glow ring
+            goal_glow = plt.Circle((gy, gx), 0.45, facecolor="none",
+                                  edgecolor="#00ffcc", linewidth=8, alpha=0.3)
+            axes.add_patch(goal_glow)
+
+            # Main portal ring
+            goal_patch = plt.Circle((gy, gx), 0.35, facecolor="none",
+                                   edgecolor="#00ffcc", linewidth=4)
+            axes.add_patch(goal_patch)
+
+            # Inner sparkle ring
+            goal_inner = plt.Circle((gy, gx), 0.25, facecolor="none",
+                                   edgecolor="#ffffff", linewidth=2, alpha=0.8)
+            axes.add_patch(goal_inner)
+
+            # Draw agent
+            circle_x = agent_y
+            circle_y = agent_x
+
+            # Agent glow
+            agent_glow = plt.Circle((circle_x, circle_y), 0.45, color="#ffcc00", alpha=0.3)
+            axes.add_patch(agent_glow)
+
+            # Agent body
+            agent_circle = plt.Circle((circle_x, circle_y), 0.3, color="#ffcc00")
+            axes.add_patch(agent_circle)
+
+            # Convert to RGB array
+            fig.canvas.draw()
+
+            # Use a more compatible method to get RGB data
+            # Get the canvas as RGBA first, then convert to RGB
+            canvas = fig.canvas
+            canvas.draw()
+
+            # Get width and height
+            width, height = canvas.get_width_height()
+
+            # Try different methods depending on the backend
+            try:
+                # Method 1: tostring_rgb (works with Agg backend)
+                buf = np.frombuffer(canvas.tostring_rgb(), dtype=np.uint8)
+                buf = buf.reshape((height, width, 3))
+            except AttributeError:
+                try:
+                    # Method 2: buffer_rgba then convert (works with most backends)
+                    buf_rgba = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
+                    buf_rgba = buf_rgba.reshape((height, width, 4))
+                    buf = buf_rgba[:, :, :3]  # Remove alpha channel
+                except AttributeError:
+                    # Method 3: tostring_argb then convert (TkAgg backend)
+                    buf_argb = np.frombuffer(canvas.tostring_argb(), dtype=np.uint8)
+                    buf_argb = buf_argb.reshape((height, width, 4))
+                    # Convert ARGB to RGB (skip alpha, reorder colors)
+                    buf = buf_argb[:, :, 1:4]  # Skip A, take RGB
+
+            # Clean up
+            plt.close(fig)
+
+            return buf
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return None
 
 class DynamicObstacleShapesSingleChannel(Env):
     """
