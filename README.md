@@ -152,9 +152,9 @@ This is achieved by clipping the probability ratio between the new and old polic
 
 **Formula:**
 
-$
+$$
 L^{CLIP}(\theta) = \mathbb{E}_t \big[ \min(r_t(\theta) A_t, \, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) A_t) \big]
-$
+$$
 
 Where:
 - $(r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)})$
@@ -169,7 +169,8 @@ loss = torch.max(surrogate_obj, clipped_surrogate_obj).mean() \
        + 0.5 * critic_loss - 0.01 * dist_entropy.mean()
 ```
 
-**Purpose in PPO:**
+Using clipped surrogate objective:
+
 - Ensures **safe policy updates**.
 - Prevents the policy from deviating too much from the previous version.
 - Avoids **catastrophic performance drops**.
@@ -212,8 +213,7 @@ if self.target_KL is not None:
         print(approx_kl)
         break
 ```
-
-**Purpose in PPO:**
+It results useful to:
 - Prevents destructive updates to the policy.
 - Ensures **safe and stable learning**.
 
@@ -431,7 +431,7 @@ To evaluate the performance of the agents I tracked two key metrics troughout th
 
 ### 1. Average reward
 
-- This metric measures the mean of the episode reward every 10 episodes.
+- This metric measures the moving average reward over the last 100 episodes.
 
 - A higher average reward indicates that the agent is both navigating more efficiently and avoiding collisions    with obstacles.
 

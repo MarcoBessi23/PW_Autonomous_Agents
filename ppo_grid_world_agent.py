@@ -243,7 +243,7 @@ class PPO:
         episode = 0
         success_rate_list = []
         average_reward = []
-        reward_array = np.zeros(10, dtype=np.float32)
+        reward_array = np.zeros(100, dtype=np.float32)
         total_updates = int(self.config.train_steps/self.config.rollout_size)
 
         for i in range(0, total_updates):
@@ -276,13 +276,10 @@ class PPO:
                     self.reward_history.append(episode_reward)
                     print(f"Episode {episode}, Reward: {episode_reward:.3f}")
                     reward_array[episode%100] = episode_reward
+                    average_reward.append(reward_array.mean())
                     episode_reward = 0
                     # If episode terminates reset the environment
                     state = self.env.reset()[0]
-
-                # Collect mean values over the updates
-                if episode%10 == 0:
-                    average_reward.append(reward_array.mean())
 
             success_rate = success/ep_in_rol
             print(f'Success rate over the last rollout: {success_rate}')
@@ -323,7 +320,7 @@ class PPO:
         plt.close()
 
         plt.figure()
-        episode_axis = [i*100 for i in np.arange(len(average_reward))]
+        episode_axis = [i for i in np.arange(len(average_reward))]
         plt.plot(episode_axis, average_reward)
         plt.xlabel("episode")
         plt.ylabel("mean")
